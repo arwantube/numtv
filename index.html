@@ -112,7 +112,7 @@
     </div>
 
     <script>
-        // Menggunakan corsproxy.io yang jauh lebih stabil untuk mengambil file M3U GitHub
+        // Menggunakan CORS Proxy corsproxy.io agar file M3U dari GitHub sukses ditarik di hosting HTTPS
         const rawPlaylistUrl = 'https://raw.githubusercontent.com/arwantube/playlist-iptv/refs/heads/main/tv-indonesia.m3u';
         const playlistUrl = 'https://corsproxy.io/?' + encodeURIComponent(rawPlaylistUrl);
 
@@ -211,12 +211,15 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.error("Network error:", data);
                                 window.hls.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.error("Media error:", data);
                                 window.hls.recoverMediaError();
                                 break;
                             default:
+                                console.error("Unrecoverable error:", data);
                                 osdInfo.innerText = `${channel.name} (Gagal Diputar)`;
                                 showOSD();
                                 window.hls.destroy();
@@ -229,7 +232,7 @@
                 video.play().then(() => {
                     osdInfo.innerText = `${currentIndex + 1}. ${channel.name}`;
                     showOSD();
-                }).catch(() => {
+                }).catch(e => {
                     osdInfo.innerText = `${channel.name} (Gagal Diputar)`;
                     showOSD();
                 });
