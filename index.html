@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Android WebTV IPTV</title>
+    <!-- HLS.js untuk pemutaran stream HLS/M3U -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* Menghilangkan garis kuning/outline fokus bawaan Android WebView */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -23,7 +23,6 @@
             overflow: hidden;
             outline: none !important;
         }
-        /* Video Player Fullscreen (Tanpa Kontrol Bawaan & Outline) */
         #video-player {
             width: 100vw;
             height: 100vh;
@@ -35,11 +34,10 @@
             z-index: 1;
             outline: none !important;
         }
-        /* Sidebar Daftar Channel */
         #sidebar {
             position: absolute;
             top: 0;
-            left: -400px; /* Sembunyikan di kiri */
+            left: -400px;
             width: 400px;
             height: 100vh;
             background: rgba(15, 15, 15, 0.95);
@@ -76,7 +74,6 @@
             text-overflow: ellipsis;
             border: 2px solid transparent;
         }
-        /* Fokus Remote Android TV pada Item Channel (Kustom Anda sendiri) */
         .channel-item.focused {
             border-color: #00ffcc;
             background: #3a3a3a;
@@ -85,7 +82,6 @@
             background: #0055ff;
             color: #fff;
         }
-        /* OSD (On-Screen Display) Info Channel saat Ganti Channel Atas/Bawah */
         #osd-info {
             position: absolute;
             top: 30px;
@@ -106,14 +102,12 @@
 </head>
 <body>
 
-    <video id="video-player" autoplay></video>
-
+    <video id="video-player" autoplay playsinline></video>
     <div id="osd-info">Channel -</div>
 
     <div id="sidebar">
         <div class="sidebar-header">Daftar Channel TV</div>
-        <div id="channel-list">
-            </div>
+        <div id="channel-list"></div>
     </div>
 
     <script>
@@ -130,7 +124,6 @@
         const channelListContainer = document.getElementById('channel-list');
         const osdInfo = document.getElementById('osd-info');
 
-        // 1. Ambil dan Parsing Playlist M3U
         async function loadPlaylist() {
             try {
                 const response = await fetch(playlistUrl);
@@ -165,7 +158,6 @@
             });
         }
 
-        // 2. Render Daftar Channel ke Sidebar
         function renderChannelList() {
             channelListContainer.innerHTML = '';
             channels.forEach((channel, index) => {
@@ -177,7 +169,6 @@
             });
         }
 
-        // 3. Putar Channel Berdasarkan Index
         function playChannel(index) {
             if (index < 0 || index >= channels.length) return;
             currentIndex = index;
@@ -186,29 +177,49 @@
             const channel = channels[currentIndex];
             const streamUrl = channel.url;
 
-            // Update Tampilan Aktif di Sidebar
             document.querySelectorAll('.channel-item').forEach((el, idx) => {
                 el.classList.toggle('active', idx === currentIndex);
             });
 
-            // Tampilkan Info di OSD
             osdInfo.innerText = `${currentIndex + 1}. ${channel.name}`;
             showOSD();
 
-            // Pemutaran Video menggunakan HLS.js atau Native Player
-            if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
-                if (window.hls) window.hls.destroy();
+            // Hentikan HLS sebelumnya jika ada
+            if (window.hls) {
+                window.hls.destroy();
+                window.hls = null;
+            }
+
+            if (Hls.isSupported() && (streamUrl.includes('.m3u8') || streamUrl.includes('m3u'))) {
                 window.hls = new Hls();
                 window.hls.loadSource(streamUrl);
                 window.hls.attachMedia(video);
-                window.hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                window.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(e => console.log("Autoplay dicegah:", e));
+                });
+                window.hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.error("Error jaringan, mencoba pemulihan...");
+                                window.hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.error("Error media, mencoba pemulihan...");
+                                window.hls.recoverMediaError();
+                                break;
+                            default:
+                                console.error("Error fatal, tidak dapat memutar stream.");
+                                break;
+                        }
+                    }
+                });
             } else {
                 video.src = streamUrl;
-                video.play();
+                video.play().catch(e => console.log("Autoplay dicegah:", e));
             }
         }
 
-        // 4. Kontrol Tampilan Sidebar & Auto Hide (5 Detik)
         function toggleSidebar(show) {
             isSidebarVisible = show;
             if (show) {
@@ -227,7 +238,7 @@
                 if (isSidebarVisible) {
                     toggleSidebar(false);
                 }
-            }, 5000); // Auto hide dalam 5 detik
+            }, 5000);
         }
 
         function showOSD() {
@@ -238,7 +249,6 @@
             }, 3000);
         }
 
-        // 5. Update Fokus Visual di dalam Sidebar
         function updateFocus() {
             const items = document.querySelectorAll('.channel-item');
             items.forEach((item, idx) => {
@@ -251,15 +261,12 @@
             });
         }
 
-        // 6. Handler Tombol Remote Android TV (Keydown)
         window.addEventListener('keydown', (e) => {
-            // Mencegah perilaku default browser untuk tombol panah
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
                 e.preventDefault();
             }
 
             if (isSidebarVisible) {
-                // Navigasi ketika sidebar terbuka
                 switch (e.key) {
                     case 'ArrowUp':
                         if (focusedIndex > 0) {
@@ -277,32 +284,26 @@
                         break;
                     case 'Enter':
                     case ' ':
-                        // Tombol OK: Putar channel yang sedang disorot di sidebar
                         playChannel(focusedIndex);
                         toggleSidebar(false);
                         break;
                     case 'ArrowLeft':
                     case 'Escape':
                     case 'Backspace':
-                        // DPad Kiri / Back menutup sidebar
                         toggleSidebar(false);
                         break;
                 }
             } else {
-                // Navigasi ketika sidebar tertutup (mode nonton fullscreen)
                 switch (e.key) {
                     case 'ArrowLeft':
-                        // DPad Kiri: Buka daftar channel
                         focusedIndex = currentIndex;
                         toggleSidebar(true);
                         break;
                     case 'ArrowUp':
-                        // DPad Atas: Ganti Channel + (Channel Berikutnya)
                         let nextIndex = (currentIndex + 1) % channels.length;
                         playChannel(nextIndex);
                         break;
                     case 'ArrowDown':
-                        // DPad Bawah: Ganti Channel - (Channel Sebelumnya)
                         let prevIndex = (currentIndex - 1 + channels.length) % channels.length;
                         playChannel(prevIndex);
                         break;
@@ -310,7 +311,6 @@
             }
         });
 
-        // Jalankan saat halaman dimuat
         loadPlaylist();
     </script>
 </body>
