@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Memaksa browser mencoba meng upgrade link http ke https -->
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <title>Android WebTV IPTV</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* Menghilangkan garis kuning/outline fokus bawaan */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -25,7 +23,6 @@
             overflow: hidden;
             outline: none !important;
         }
-        /* Video Player Fullscreen */
         #video-player {
             width: 100vw;
             height: 100vh;
@@ -37,11 +34,10 @@
             z-index: 1;
             outline: none !important;
         }
-        /* Sidebar Daftar Channel */
         #sidebar {
             position: absolute;
             top: 0;
-            left: -400px; /* Sembunyikan di kiri */
+            left: -400px;
             width: 400px;
             height: 100vh;
             background: rgba(15, 15, 15, 0.95);
@@ -78,7 +74,6 @@
             text-overflow: ellipsis;
             border: 2px solid transparent;
         }
-        /* Fokus Remote Android TV pada Item Channel */
         .channel-item.focused {
             border-color: #00ffcc;
             background: #3a3a3a;
@@ -87,7 +82,6 @@
             background: #0055ff;
             color: #fff;
         }
-        /* OSD (On-Screen Display) Info Channel */
         #osd-info {
             position: absolute;
             top: 30px;
@@ -118,9 +112,9 @@
     </div>
 
     <script>
-        // Menggunakan CORS Proxy agar playlist M3U dari GitHub aman diambil via hosting HTTPS
+        // Menggunakan corsproxy.io yang jauh lebih stabil untuk mengambil file M3U GitHub
         const rawPlaylistUrl = 'https://raw.githubusercontent.com/arwantube/playlist-iptv/refs/heads/main/tv-indonesia.m3u';
-        const playlistUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawPlaylistUrl);
+        const playlistUrl = 'https://corsproxy.io/?' + encodeURIComponent(rawPlaylistUrl);
 
         let channels = [];
         let currentIndex = 0;
@@ -134,10 +128,10 @@
         const channelListContainer = document.getElementById('channel-list');
         const osdInfo = document.getElementById('osd-info');
 
-        // 1. Ambil dan Parsing Playlist M3U
         async function loadPlaylist() {
             try {
                 const response = await fetch(playlistUrl);
+                if (!response.ok) throw new Error('Network response was not ok');
                 const text = await response.text();
                 parseM3U(text);
                 if (channels.length > 0) {
@@ -172,7 +166,6 @@
             });
         }
 
-        // 2. Render Daftar Channel ke Sidebar
         function renderChannelList() {
             channelListContainer.innerHTML = '';
             channels.forEach((channel, index) => {
@@ -184,7 +177,6 @@
             });
         }
 
-        // 3. Putar Channel Berdasarkan Index dengan Error Handling HLS.js
         function playChannel(index) {
             if (index < 0 || index >= channels.length) return;
             currentIndex = index;
@@ -193,12 +185,10 @@
             const channel = channels[currentIndex];
             const streamUrl = channel.url;
 
-            // Update Tampilan Aktif di Sidebar
             document.querySelectorAll('.channel-item').forEach((el, idx) => {
                 el.classList.toggle('active', idx === currentIndex);
             });
 
-            // Tampilkan Info Loading di OSD
             osdInfo.innerText = `${currentIndex + 1}. ${channel.name} (Memuat...)`;
             showOSD();
 
@@ -221,15 +211,12 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.error("Network error:", data);
                                 window.hls.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
-                                console.error("Media error:", data);
                                 window.hls.recoverMediaError();
                                 break;
                             default:
-                                console.error("Unrecoverable error:", data);
                                 osdInfo.innerText = `${channel.name} (Gagal Diputar)`;
                                 showOSD();
                                 window.hls.destroy();
@@ -242,14 +229,13 @@
                 video.play().then(() => {
                     osdInfo.innerText = `${currentIndex + 1}. ${channel.name}`;
                     showOSD();
-                }).catch(e => {
+                }).catch(() => {
                     osdInfo.innerText = `${channel.name} (Gagal Diputar)`;
                     showOSD();
                 });
             }
         }
 
-        // 4. Kontrol Tampilan Sidebar & Auto Hide (5 Detik)
         function toggleSidebar(show) {
             isSidebarVisible = show;
             if (show) {
@@ -268,7 +254,7 @@
                 if (isSidebarVisible) {
                     toggleSidebar(false);
                 }
-            }, 5000); // Auto hide dalam 5 detik
+            }, 5000);
         }
 
         function showOSD() {
@@ -279,7 +265,6 @@
             }, 3000);
         }
 
-        // 5. Update Fokus Visual di dalam Sidebar
         function updateFocus() {
             const items = document.querySelectorAll('.channel-item');
             items.forEach((item, idx) => {
@@ -292,7 +277,6 @@
             });
         }
 
-        // 6. Handler Tombol Remote Android TV (Keydown)
         window.addEventListener('keydown', (e) => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
                 e.preventDefault();
@@ -343,7 +327,6 @@
             }
         });
 
-        // Jalankan saat halaman dimuat
         loadPlaylist();
     </script>
 </body>
