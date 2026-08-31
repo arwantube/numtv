@@ -35,17 +35,6 @@
             z-index: 1;
             outline: none !important;
         }
-        
-        /* Menghilangkan elemen default kontrol & ikon play bawaan WebView/Chromium */
-        #video-player::-webkit-media-controls,
-        #video-player::-webkit-media-controls-panel,
-        #video-player::-webkit-media-controls-start-playback-button,
-        #video-player::-webkit-media-controls-enclosure {
-            display: none !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
         /* Sidebar Daftar Channel */
         #sidebar {
             position: absolute;
@@ -87,7 +76,7 @@
             text-overflow: ellipsis;
             border: 2px solid transparent;
         }
-        /* Fokus Remote Android TV pada Item Channel */
+        /* Fokus Remote Android TV pada Item Channel (Kustom Anda sendiri) */
         .channel-item.focused {
             border-color: #00ffcc;
             background: #3a3a3a;
@@ -117,13 +106,14 @@
 </head>
 <body>
 
-    <video id="video-player" autoplay playsinline></video>
+    <video id="video-player" autoplay></video>
 
     <div id="osd-info">Channel -</div>
 
     <div id="sidebar">
         <div class="sidebar-header">Daftar Channel TV</div>
-        <div id="channel-list"></div>
+        <div id="channel-list">
+            </div>
     </div>
 
     <script>
@@ -237,7 +227,7 @@
                 if (isSidebarVisible) {
                     toggleSidebar(false);
                 }
-            }, 5000);
+            }, 5000); // Auto hide dalam 5 detik
         }
 
         function showOSD() {
@@ -263,11 +253,13 @@
 
         // 6. Handler Tombol Remote Android TV (Keydown)
         window.addEventListener('keydown', (e) => {
+            // Mencegah perilaku default browser untuk tombol panah
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
                 e.preventDefault();
             }
 
             if (isSidebarVisible) {
+                // Navigasi ketika sidebar terbuka
                 switch (e.key) {
                     case 'ArrowUp':
                         if (focusedIndex > 0) {
@@ -285,26 +277,32 @@
                         break;
                     case 'Enter':
                     case ' ':
+                        // Tombol OK: Putar channel yang sedang disorot di sidebar
                         playChannel(focusedIndex);
                         toggleSidebar(false);
                         break;
                     case 'ArrowLeft':
                     case 'Escape':
                     case 'Backspace':
+                        // DPad Kiri / Back menutup sidebar
                         toggleSidebar(false);
                         break;
                 }
             } else {
+                // Navigasi ketika sidebar tertutup (mode nonton fullscreen)
                 switch (e.key) {
                     case 'ArrowLeft':
+                        // DPad Kiri: Buka daftar channel
                         focusedIndex = currentIndex;
                         toggleSidebar(true);
                         break;
                     case 'ArrowUp':
+                        // DPad Atas: Ganti Channel + (Channel Berikutnya)
                         let nextIndex = (currentIndex + 1) % channels.length;
                         playChannel(nextIndex);
                         break;
                     case 'ArrowDown':
+                        // DPad Bawah: Ganti Channel - (Channel Sebelumnya)
                         let prevIndex = (currentIndex - 1 + channels.length) % channels.length;
                         playChannel(prevIndex);
                         break;
@@ -312,6 +310,7 @@
             }
         });
 
+        // Jalankan saat halaman dimuat
         loadPlaylist();
     </script>
 </body>
