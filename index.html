@@ -6,10 +6,13 @@
     <title>Android WebTV IPTV</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
+        /* Menghilangkan garis kuning/outline fokus bawaan Android WebView */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            outline: none !important;
+            -webkit-tap-highlight-color: transparent;
         }
         body, html {
             width: 100%;
@@ -18,8 +21,9 @@
             color: #fff;
             font-family: sans-serif;
             overflow: hidden;
+            outline: none !important;
         }
-        /* Video Player Fullscreen (Tanpa Kontrol Bawaan) */
+        /* Video Player Fullscreen (Tanpa Kontrol Bawaan & Outline) */
         #video-player {
             width: 100vw;
             height: 100vh;
@@ -29,6 +33,7 @@
             top: 0;
             left: 0;
             z-index: 1;
+            outline: none !important;
         }
         /* Sidebar Daftar Channel */
         #sidebar {
@@ -71,7 +76,7 @@
             text-overflow: ellipsis;
             border: 2px solid transparent;
         }
-        /* Fokus Remote Android TV pada Item Channel */
+        /* Fokus Remote Android TV pada Item Channel (Kustom Anda sendiri) */
         .channel-item.focused {
             border-color: #00ffcc;
             background: #3a3a3a;
