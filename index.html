@@ -153,6 +153,10 @@
         let hideSidebarTimer = null;
         let osdTimer = null;
 
+        // Variabel penampung input nomor remot TV
+        let numberBuffer = '';
+        let numberTimer = null;
+
         const video = document.getElementById('video-player');
         const spinner = document.getElementById('loading-spinner');
         const streamStatusText = document.getElementById('stream-status-text');
@@ -167,7 +171,12 @@
                 parseM3U(text);
                 if (channels.length > 0) {
                     renderChannelList();
-                    playChannel(0);
+                    
+                    // Fitur #2: Memuat channel terakhir dari localStorage
+                    const savedIndex = parseInt(localStorage.getItem('iptv_last_channel'), 10);
+                    const initialIndex = (!isNaN(savedIndex) && savedIndex >= 0 && savedIndex < channels.length) ? savedIndex : 0;
+                    
+                    playChannel(initialIndex);
                 } else {
                     showOSD("Playlist kosong!");
                 }
@@ -216,6 +225,9 @@
             if (index < 0 || index >= channels.length) return;
             currentIndex = index;
             focusedIndex = index;
+
+            // Fitur #2: Menyimpan channel terakhir yang ditonton
+            localStorage.setItem('iptv_last_channel', index);
 
             const channel = channels[currentIndex];
             const streamUrl = channel.url;
@@ -267,7 +279,17 @@
             prepareChannel(index);
             const channel = channels[currentIndex];
             showOSD(`${currentIndex + 1}. ${channel.name}`);
-            video.play().catch(e => console.log("Play blocked:", e));
+            
+            // Fitur #1: Penanganan Autoplay Block (Mute Fallback)
+            video.play().catch(e => {
+                console.log("Autoplay blocked, mencoba pemutaran muted:", e);
+                video.muted = true;
+                video.play().then(() => {
+                    showOSD(`${currentIndex + 1}. ${channel.name} (Suara Dibisukan)`);
+                }).catch(err => {
+                    console.error("Gagal memutar video sepenuhnya:", err);
+                });
+            });
         }
 
         function handleStreamError() {
@@ -332,6 +354,31 @@
         }
 
         window.addEventListener('keydown', (e) => {
+            // Otomatis bunyikan suara jika sebelumnya dibisukan oleh aturan autoplay
+            if (video.muted) {
+                video.muted = false;
+            }
+
+            // Fitur #3: Penanganan Tombol Angka Remot TV (0-9)
+            if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                numberBuffer += e.key;
+                showOSD(`Pindah ke Channel: ${numberBuffer}`);
+
+                clearTimeout(numberTimer);
+                numberTimer = setTimeout(() => {
+                    const targetIndex = parseInt(numberBuffer, 10) - 1;
+                    if (targetIndex >= 0 && targetIndex < channels.length) {
+                        playChannel(targetIndex);
+                        if (isSidebarVisible) toggleSidebar(false);
+                    } else {
+                        showOSD("Channel tidak ditemukan!");
+                    }
+                    numberBuffer = '';
+                }, 1500);
+                return;
+            }
+
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(e.key)) {
                 e.preventDefault();
             }
