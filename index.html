@@ -24,7 +24,6 @@
         }
         #video-player {
             width: 100vw;
-            height: 100vw;
             height: 100vh;
             object-fit: contain;
             background: #000;
@@ -131,55 +130,14 @@
         #osd-info.show {
             opacity: 1;
         }
-        #play-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
-            cursor: pointer;
-        }
-        #play-button-icon {
-            width: 100px;
-            height: 100px;
-            background: rgba(0, 255, 204, 0.8);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
-            transition: transform 0.2s ease;
-        }
-        #play-button-icon:hover {
-            transform: scale(1.1);
-        }
-        #play-button-icon::after {
-            content: '';
-            display: block;
-            width: 0;
-            height: 0;
-            border-top: 25px solid transparent;
-            border-bottom: 25px solid transparent;
-            border-left: 40px solid #000;
-            margin-left: 8px;
-        }
     </style>
 </head>
 <body>
 
-    <video id="video-player" playsinline></video>
+    <video id="video-player" playsinline autoplay></video>
     <div id="loading-spinner"></div>
     <div id="stream-status-text">Stream Mati</div>
     <div id="osd-info">Channel -</div>
-
-    <div id="play-overlay">
-        <div id="play-button-icon"></div>
-    </div>
 
     <div id="sidebar">
         <div class="sidebar-header">Daftar Channel TV</div>
@@ -194,7 +152,6 @@
         let isSidebarVisible = false;
         let hideSidebarTimer = null;
         let osdTimer = null;
-        let hasInteracted = false;
 
         const video = document.getElementById('video-player');
         const spinner = document.getElementById('loading-spinner');
@@ -202,7 +159,6 @@
         const sidebar = document.getElementById('sidebar');
         const channelListContainer = document.getElementById('channel-list');
         const osdInfo = document.getElementById('osd-info');
-        const playOverlay = document.getElementById('play-overlay');
 
         async function loadPlaylist() {
             try {
@@ -211,7 +167,7 @@
                 parseM3U(text);
                 if (channels.length > 0) {
                     renderChannelList();
-                    prepareChannel(0);
+                    playChannel(0);
                 } else {
                     showOSD("Playlist kosong!");
                 }
@@ -248,6 +204,10 @@
                 div.className = `channel-item ${index === 0 ? 'focused' : ''}`;
                 div.innerText = channel.name;
                 div.dataset.index = index;
+                div.addEventListener('click', () => {
+                    playChannel(index);
+                    toggleSidebar(false);
+                });
                 channelListContainer.appendChild(div);
             });
         }
@@ -329,12 +289,6 @@
             handleStreamError();
         });
 
-        playOverlay.addEventListener('click', () => {
-            hasInteracted = true;
-            playOverlay.style.display = 'none';
-            playChannel(currentIndex);
-        });
-
         function toggleSidebar(show) {
             isSidebarVisible = show;
             if (show) {
@@ -378,13 +332,6 @@
         }
 
         window.addEventListener('keydown', (e) => {
-            if (!hasInteracted && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                hasInteracted = true;
-                playOverlay.style.display = 'none';
-                playChannel(currentIndex);
-                return;
-            }
-
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(e.key)) {
                 e.preventDefault();
             }
