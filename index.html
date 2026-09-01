@@ -48,6 +48,21 @@
             z-index: 4;
             display: none;
         }
+        #stream-status-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 20px;
+            color: #ff4d4d;
+            border: 1px solid #444;
+            z-index: 4;
+            display: none;
+            text-align: center;
+        }
         @keyframes spin {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             100% { transform: translate(-50%, -50%) rotate(360deg); }
@@ -116,13 +131,55 @@
         #osd-info.show {
             opacity: 1;
         }
+        #play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            cursor: pointer;
+        }
+        #play-button-icon {
+            width: 100px;
+            height: 100px;
+            background: rgba(0, 255, 204, 0.8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+            transition: transform 0.2s ease;
+        }
+        #play-button-icon:hover {
+            transform: scale(1.1);
+        }
+        #play-button-icon::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-top: 25px solid transparent;
+            border-bottom: 25px solid transparent;
+            border-left: 40px solid #000;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
 
-    <video id="video-player" autoplay playsinline></video>
+    <video id="video-player" playsinline></video>
     <div id="loading-spinner"></div>
+    <div id="stream-status-text">Stream Mati</div>
     <div id="osd-info">Channel -</div>
+
+    <div id="play-overlay">
+        <div id="play-button-icon"></div>
+    </div>
 
     <div id="sidebar">
         <div class="sidebar-header">Daftar Channel TV</div>
@@ -137,12 +194,15 @@
         let isSidebarVisible = false;
         let hideSidebarTimer = null;
         let osdTimer = null;
+        let hasInteracted = false;
 
         const video = document.getElementById('video-player');
         const spinner = document.getElementById('loading-spinner');
+        const streamStatusText = document.getElementById('stream-status-text');
         const sidebar = document.getElementById('sidebar');
         const channelListContainer = document.getElementById('channel-list');
         const osdInfo = document.getElementById('osd-info');
+        const playOverlay = document.getElementById('play-overlay');
 
         async function loadPlaylist() {
             try {
@@ -151,7 +211,7 @@
                 parseM3U(text);
                 if (channels.length > 0) {
                     renderChannelList();
-                    playChannel(0);
+                    prepareChannel(0);
                 } else {
                     showOSD("Playlist kosong!");
                 }
@@ -192,7 +252,7 @@
             });
         }
 
-        function playChannel(index) {
+        function prepareChannel(index) {
             if (index < 0 || index >= channels.length) return;
             currentIndex = index;
             focusedIndex = index;
@@ -203,9 +263,6 @@
             document.querySelectorAll('.channel-item').forEach((el, idx) => {
                 el.classList.toggle('active', idx === currentIndex);
             });
-
-            showOSD(`${currentIndex + 1}. ${channel.name}`);
-            spinner.style.display = 'block';
 
             if (window.hls) {
                 window.hls.destroy();
@@ -222,10 +279,6 @@
                 hls.loadSource(streamUrl);
                 hls.attachMedia(video);
                 
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    video.play().catch(e => console.log("Autoplay blocked:", e));
-                });
-
                 hls.on(Hls.Events.ERROR, (event, data) => {
                     if (data.fatal) {
                         console.warn(`HLS Fatal error on channel ${channel.name}:`, data.details);
@@ -245,29 +298,41 @@
                 });
             } else {
                 video.src = streamUrl;
-                video.play().catch(e => console.log("Autoplay blocked:", e));
             }
         }
 
+        function playChannel(index) {
+            spinner.style.display = 'block';
+            streamStatusText.style.display = 'none';
+            prepareChannel(index);
+            const channel = channels[currentIndex];
+            showOSD(`${currentIndex + 1}. ${channel.name}`);
+            video.play().catch(e => console.log("Play blocked:", e));
+        }
+
         function handleStreamError() {
-            showOSD(`Stream mati, melompat...`);
-            setTimeout(() => {
-                let nextIndex = (currentIndex + 1) % channels.length;
-                playChannel(nextIndex);
-            }, 1500);
+            spinner.style.display = 'none';
+            streamStatusText.style.display = 'block';
         }
 
         video.addEventListener('playing', () => {
             spinner.style.display = 'none';
+            streamStatusText.style.display = 'none';
         });
 
         video.addEventListener('waiting', () => {
             spinner.style.display = 'block';
+            streamStatusText.style.display = 'none';
         });
 
         video.addEventListener('error', () => {
-            spinner.style.display = 'none';
             handleStreamError();
+        });
+
+        playOverlay.addEventListener('click', () => {
+            hasInteracted = true;
+            playOverlay.style.display = 'none';
+            playChannel(currentIndex);
         });
 
         function toggleSidebar(show) {
@@ -313,6 +378,13 @@
         }
 
         window.addEventListener('keydown', (e) => {
+            if (!hasInteracted && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                hasInteracted = true;
+                playOverlay.style.display = 'none';
+                playChannel(currentIndex);
+                return;
+            }
+
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(e.key)) {
                 e.preventDefault();
             }
